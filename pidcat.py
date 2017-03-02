@@ -86,18 +86,35 @@ try:
 except:
   pass
 
-BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(8)
+DEFAULT_COLOR = 39
+BLACK = 30
+RED = 31
+GREEN = 32
+YELLOW = 33
+BLUE = 34
+MAGENTA = 35
+CYAN = 36
+WHITE = DEFAULT_COLOR
+LGRAY = 37
+DGRAY = 90
+LRED = 91
+LGREEN = 92
+LYELLOW = 93
+LBLUE = 94
+LMAGENTA = 95
+LCYAN = 96
+
 
 RESET = '\033[0m'
 
 def termcolor(fg=None, bg=None):
   codes = []
-  if fg is not None: codes.append('3%d' % fg)
-  if bg is not None: codes.append('10%d' % bg)
+  if fg is not None: codes.append('%d' % fg)
+  if bg is not None: codes.append('%d' % (10 + bg))
   return '\033[%sm' % ';'.join(codes) if codes else ''
 
-def colorize(message, fg=None, bg=None):
-  return termcolor(fg, bg) + message + RESET
+def colorize(message, fg=None, bg=None, bold=False):
+  return termcolor(fg, bg) + ('\033[1m' if bold else '') + message + RESET
 
 def indent_wrap(message):
   if width == -1:
@@ -156,12 +173,21 @@ if args.color_gc:
 
 
 TAGTYPES = {
-  'V': colorize(' V ', fg=WHITE, bg=BLACK),
-  'D': colorize(' D ', fg=BLACK, bg=BLUE),
-  'I': colorize(' I ', fg=BLACK, bg=GREEN),
-  'W': colorize(' W ', fg=BLACK, bg=YELLOW),
-  'E': colorize(' E ', fg=BLACK, bg=RED),
-  'F': colorize(' F ', fg=BLACK, bg=RED),
+  'V': colorize(' V ', fg=DGRAY, bg=None, bold=True),
+  'D': colorize(' D ', fg=BLUE, bg=None, bold=True),
+  'I': colorize(' I ', fg=WHITE, bg=None, bold=True),
+  'W': colorize(' W ', fg=YELLOW, bg=None, bold=True),
+  'E': colorize(' E ', fg=RED, bg=None, bold=True),
+  'F': colorize(' F ', fg=RED, bg=None, bold=True),
+}
+
+BUFFERCOLORS = {
+  'V': (DGRAY, None, False),
+  'D': (BLUE, None, False),
+  'I': (WHITE, None, False),
+  'W': (YELLOW, None, False),
+  'E': (RED, None, True),
+  'F': (RED, None, True),
 }
 
 PID_LINE = re.compile(r'^\w+\s+(\w+)\s+\w+\s+\w+\s+\w+\s+\w+\s+\w+\s+\w\s([\w|\.|\/]+)$')
@@ -196,7 +222,7 @@ class FakeStdinProcess():
     return None
 
 if sys.stdin.isatty():
-  adb = subprocess.Popen(adb_command, stdin=PIPE, stdout=PIPE)
+  adb = subprocess.Popen(adb_command, stdin=PIPE, stdout=PIPE, stderr=PIPE)
 else:
   adb = FakeStdinProcess()
 pids = set()
@@ -356,5 +382,6 @@ while adb.poll() is None:
     replace = RULES[matcher]
     message = matcher.sub(replace, message)
 
-  linebuf += indent_wrap(message)
+  bufferColor = BUFFERCOLORS[level]
+  linebuf += colorize(indent_wrap(message), bufferColor[0], bufferColor[1], bufferColor[2])
   print(linebuf.encode('utf-8'))
